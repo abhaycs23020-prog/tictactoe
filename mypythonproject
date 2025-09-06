@@ -1,0 +1,145 @@
+import tkinter as tk
+from tkinter import messagebox
+
+HUMAN = 'X'
+AI = 'O'
+EMPTY = ''
+
+winning_combinations = [
+    (0,1,2),(3,4,5),(6,7,8),
+    (0,3,6),(1,4,7),(2,5,8),
+    (0,4,8),(2,4,6)
+]
+
+class TicTacToe:
+    def __init__(self, root):
+        self.root = root
+        root.title("Tic-Tac-Toe with AI (Minimax)")
+        self.board = [EMPTY]*9
+        self.buttons = []
+        self.game_over = False
+
+        self.status = tk.Label(root, text="Your turn (X)", font=("Helvetica", 14))
+        self.status.grid(row=0, column=0, columnspan=3, pady=(10,0))
+
+        # Create 3x3 grid of buttons
+        for i in range(9):
+            btn = tk.Button(root, text='', font=("Helvetica", 32), width=5, height=2,
+                            command=lambda i=i: self.on_click(i))
+            btn.grid(row=1 + i//3, column=i%3, padx=5, pady=5)
+            self.buttons.append(btn)
+
+        self.reset_button = tk.Button(root, text="Reset", command=self.reset_board)
+        self.reset_button.grid(row=4, column=0, columnspan=3, sticky="we", pady=(5,10))
+
+    def on_click(self, idx):
+        if self.game_over or self.board[idx] != EMPTY:
+            return
+        self.make_move(idx, HUMAN)
+        if self.check_end():
+            return
+        self.status.config(text="AI thinking...")
+        self.root.update()
+        # small delay for UX so player sees their move before AI acts
+        self.root.after(200, self.ai_move)
+
+    def make_move(self, idx, player):
+        self.board[idx] = player
+        self.buttons[idx].config(text=player, state='disabled')
+
+    def ai_move(self):
+        best_score = -float('inf')
+        best_move = None
+        for i in range(9):
+            if self.board[i] == EMPTY:
+                self.board[i] = AI
+                score = self.minimax(self.board, False)
+                self.board[i] = EMPTY
+                if score > best_score:
+                    best_score = score
+                    best_move = i
+        if best_move is not None:
+            self.make_move(best_move, AI)
+            self.status.config(text="Your turn (X)")
+            self.check_end()
+
+    def check_winner(self):
+        for a,b,c in winning_combinations:
+            if self.board[a] == self.board[b] == self.board[c] != EMPTY:
+                return self.board[a]
+        if EMPTY not in self.board:
+            return "Tie"
+        return None
+
+    # Helper used by minimax that checks an arbitrary board
+    def check_winner_board(self, board):
+        for a,b,c in winning_combinations:
+            if board[a] == board[b] == board[c] != EMPTY:
+                return board[a]
+        if EMPTY not in board:
+            return "Tie"
+        return None
+
+    def check_end(self):
+        winner = self.check_winner()
+        if winner:
+            self.game_over = True
+            if winner == "Tie":
+                self.status.config(text="It's a tie!")
+                messagebox.showinfo("Game Over", "It's a tie!")
+            else:
+                if winner == HUMAN:
+                    self.status.config(text="You win!")
+                    messagebox.showinfo("Game Over", "You win!")
+                else:
+                    self.status.config(text="AI wins!")
+                    messagebox.showinfo("Game Over", "AI wins!")
+            # disable remaining buttons
+            for btn in self.buttons:
+                btn.config(state='disabled')
+            return True
+        return False
+
+    def minimax(self, board, is_maximizing):
+        """
+        Simple minimax: returns 1 for AI win, -1 for human win, 0 for tie.
+        (Depth-based scoring could be added to prefer faster wins.)
+        """
+        winner = self.check_winner_board(board)
+        if winner == AI:
+            return 1
+        elif winner == HUMAN:
+            return -1
+        elif winner == "Tie":
+            return 0
+
+        if is_maximizing:
+            best = -float('inf')
+            for i in range(9):
+                if board[i] == EMPTY:
+                    board[i] = AI
+                    val = self.minimax(board, False)
+                    board[i] = EMPTY
+                    best = max(best, val)
+            return best
+        else:
+            best = float('inf')
+            for i in range(9):
+                if board[i] == EMPTY:
+                    board[i] = HUMAN
+                    val = self.minimax(board, True)
+                    board[i] = EMPTY
+                    best = min(best, val)
+            return best
+
+    def reset_board(self):
+        self.board = [EMPTY]*9
+        self.game_over = False
+        for btn in self.buttons:
+            btn.config(text='', state='normal')
+        self.status.config(text="Your turn (X)")
+
+if __name__ == "__main__":
+    root = tk.Tk()
+    game = TicTacToe(root)
+    root.mainloop()
